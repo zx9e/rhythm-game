@@ -146,12 +146,12 @@
                 if (currentIndex >= expectedKeys.length) {
                     clearTimeout(timer);
                     document.getElementById('result').textContent = 'GOOD!';
-                    setTimeout(startGame, 500);
+                    setTimeout(startGame, 1000);
                 }
             } else {
                 document.getElementById('result').textContent = 'MISS';
                 clearTimeout(timer);
-                setTimeout(startGame, 500);
+                setTimeout(startGame, 1000);
             }
         });
     </script>

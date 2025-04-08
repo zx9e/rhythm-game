@@ -127,7 +127,7 @@
             timer = setTimeout(() => {
                 if (currentIndex < expectedKeys.length) {
                     document.getElementById('result').textContent = 'MISS';
-                    setTimeout(startGame, 500);
+                    setTimeout(startGame, 1000);
                 }
             }, timeLimit + 50);
         }

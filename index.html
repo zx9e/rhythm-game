@@ -8,8 +8,8 @@
         body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
         #game { margin-top: 20px; }
         .arrow {
-            display: inline-block; width: 60px; height: 60px;
-            margin: 4px; border: 2px solid #000;
+            display: inline-block; width: 45px; height: 45px;
+            margin: 0; border: none;
         }
         .arrow img { width: 100%; height: 100%; }
         #bar-container {
@@ -21,6 +21,7 @@
             position: absolute; left: 0; top: 0;
         }
         #result { margin-top: 20px; font-size: 20px; font-weight: bold; }
+        footer { margin-top: 40px; font-size: 14px; color: #555; }
     </style>
 </head>
 <body>
@@ -32,6 +33,7 @@
             <select id="speed">
                 <option value="300">0.3秒</option>
                 <option value="500">0.5秒</option>
+                <option value="700">0.7秒</option>
                 <option value="1000" selected>1秒</option>
                 <option value="1500">1.5秒</option>
             </select>
@@ -39,6 +41,11 @@
         <button onclick="startGame()">開始</button>
     </div>
     <div id="result"></div>
+
+    <footer>
+        本遊戲為個人練習用，非商業用途。<br>
+        This game is for personal practice only. Not for commercial use.
+    </footer>
 
     <script>
         const directions = ['↑', '↓', '←', '→'];
@@ -127,7 +134,7 @@
             timer = setTimeout(() => {
                 if (currentIndex < expectedKeys.length) {
                     document.getElementById('result').textContent = 'MISS';
-                    setTimeout(startGame, 500);
+                    setTimeout(startGame, 2000);
                 }
             }, timeLimit + 50);
         }
@@ -146,20 +153,14 @@
                 if (currentIndex >= expectedKeys.length) {
                     clearTimeout(timer);
                     document.getElementById('result').textContent = 'GOOD!';
-                    setTimeout(startGame, 500);
+                    setTimeout(startGame, 2000);
                 }
             } else {
                 document.getElementById('result').textContent = 'MISS';
                 clearTimeout(timer);
-                setTimeout(startGame, 500);
+                setTimeout(startGame, 2000);
             }
         });
     </script>
-
-    <footer style="margin-top: 40px; font-size: 14px; color: #555;">
-        本遊戲為個人練習用，非商業用途。<br>
-        This game is for personal practice only. Not for commercial use.
-    </footer>
-
 </body>
 </html>

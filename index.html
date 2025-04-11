@@ -161,9 +161,9 @@
                     setTimeout(() => { inputEnabled = true; startGame(); }, 2000);
                 }
             } else {
+                inputEnabled = false;
                 document.getElementById("game").innerHTML = '';
                 clearTimeout(timer);
-                inputEnabled = false;
                 setTimeout(() => { inputEnabled = true; startGame(); }, 2000);
             }
         });

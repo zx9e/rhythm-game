@@ -2,171 +2,220 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <title>節奏練習遊戲</title>
-    <style>
-        body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
-        #game { margin-top: 20px; }
-        .arrow {
-            display: inline-block; width: 50px; height: 50px;
-            margin: 0; border: none;
-        }
-        .arrow img { width: 100%; height: 100%; }
-        #bar-container {
-            width: 60%; height: 10px; background: #ddd;
-            margin: 20px auto; position: relative;
-        }
-        #bar-progress {
-            height: 100%; background: green; width: 0%;
-            position: absolute; left: 0; top: 0;
-        }
-        #result { margin-top: 20px; font-size: 20px; font-weight: bold; }
-        footer { margin-top: 40px; font-size: 14px; color: #555; }
-    </style>
+  <meta charset="UTF-8">
+  <title>節奏練習遊戲 - 題庫版</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
+    #controls { margin-top: 20px; }
+    #game { margin-top: 20px; }
+    .arrow {
+      display: inline-block; width: 50px; height: 50px;
+      margin: 0; border: none;
+    }
+    .arrow img { width: 100%; height: 100%; }
+    #bar-container {
+      width: 60%; height: 10px; background: #ddd;
+      margin: 20px auto; position: relative;
+    }
+    #bar-progress {
+      height: 100%; background: green; width: 0%;
+      position: absolute; left: 0; top: 0;
+    }
+    #result { margin-top: 20px; font-size: 20px; font-weight: bold; }
+    footer { margin-top: 40px; font-size: 14px; color: #555; }
+  </style>
 </head>
 <body>
-    <h1>節奏練習遊戲</h1>
-    <div id="bar-container"><div id="bar-progress"></div></div>
-    <div id="game"></div>
-    <div>
-        <label>整組限時（秒）：
-            <select id="speed">
-                <option value="300">0.3秒</option>
-                <option value="500">0.5秒</option>
-                <option value="700">0.7秒</option>
-                <option value="1000" selected>1秒</option>
-                <option value="1500">1.5秒</option>
-            </select>
-        </label>
-        <button onclick="startGame()">開始</button>
-    </div>
-    <div id="result"></div>
+  <h1>節奏練習遊戲</h1>
 
-    <footer>
-        本遊戲為個人練習用，非商業用途。<br>
-        This game is for personal practice only. Not for commercial use.
-    </footer>
+  <div id="controls">
+    <label>模式：
+      <select id="mode">
+        <option value="floor">地板</option>
+        <option value="4K">4K</option>
+        <option value="8K">8K</option>
+        <option value="9K">9K</option>
+      </select>
+    </label>
+    <label>子模式：
+      <select id="submode"></select>
+    </label>
+  </div>
 
-    <script>
-        const directions = ['↑', '↓', '←', '→'];
-        const keyMap = { 'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→' };
-        const imagePaths = {
-        "藍_↑": "藍上.jpg",
-        "藍_↓": "藍下.jpg",
-        "藍_←": "藍左.jpg",
-        "藍_→": "藍右.jpg",
-        "紅_↑": "紅上.jpg",
-        "紅_↓": "紅下.jpg",
-        "紅_←": "紅左.jpg",
-        "紅_→": "紅右.jpg",
-        "綠_↑": "綠上.jpg",
-        "綠_↓": "綠下.jpg",
-        "綠_←": "綠左.jpg",
-        "綠_→": "綠右.jpg"
-        };
-        let sequence = [];
-        let expectedKeys = [];
-        let currentIndex = 0;
-        let timeLimit = 1000;
-        let timer = null;
-        let progressBar = null;
-        let inputEnabled = true;
+  <div id="controls">
+    <label>整組限時（秒）：
+      <select id="speed">
+        <option value="300">0.3秒</option>
+        <option value="500">0.5秒</option>
+        <option value="700">0.7秒</option>
+        <option value="1000" selected>1秒</option>
+        <option value="1500">1.5秒</option>
+      </select>
+    </label>
+    <button onclick="startGame()">開始</button>
+  </div>
 
-        function getOpposite(dir) {
-            if (dir === '↑') return '↓';
-            if (dir === '↓') return '↑';
-            if (dir === '←') return '→';
-            if (dir === '→') return '←';
-        }
+  <div id="bar-container"><div id="bar-progress"></div></div>
+  <div id="game"></div>
+  <div id="result"></div>
 
-        function generateSequence() {
-            sequence = [];
-            expectedKeys = [];
-            for (let i = 0; i < 11; i++) {
-                let dir = directions[Math.floor(Math.random() * directions.length)];
-                sequence.push(dir);
-                if (i === 7) {
-                    expectedKeys.push(getOpposite(dir));
-                } else {
-                    expectedKeys.push(dir);
-                }
-            }
-        }
+  <footer>
+    本遊戲為個人練習用，非商業用途。<br>
+    This game is for personal practice only. Not for commercial use.
+  </footer>
 
-        function displaySequence() {
-            const gameDiv = document.getElementById('game');
-            gameDiv.innerHTML = '';
-            sequence.forEach((dir, i) => {
-                const div = document.createElement('div');
-                div.className = 'arrow';
-                div.id = 'arrow-' + i;
-                const img = document.createElement('img');
-                img.src = (i === 7 ? imagePaths["紅_" + dir] : imagePaths["藍_" + dir]);
-                img.dataset.original = dir;
-                div.appendChild(img);
-                gameDiv.appendChild(div);
-            });
-        }
+  <script>
+    const keyMap = {
+      'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→',
+      '1': '↙', '2': '↓', '3': '↘', '4': '←', '5': '中', '6': '→', '7': '↖', '8': '↑', '9': '↗'
+    };
 
-        function startProgressBar(duration) {
-            let bar = document.getElementById('bar-progress');
-            bar.style.width = '0%';
-            let start = performance.now();
-            function animate(time) {
-                let elapsed = time - start;
-                let progress = Math.min(elapsed / duration, 1);
-                bar.style.width = (progress * 100) + '%';
-                if (progress < 1) {
-                    progressBar = requestAnimationFrame(animate);
-                }
-            }
-            progressBar = requestAnimationFrame(animate);
-        }
+    const imgMap = {
+      '藍_↖': '藍左上.JPG', '藍_↗': '藍右上.JPG', '藍_↘': '藍右下.JPG', '藍_↙': '藍左下.JPG', '藍_中': '藍中.JPG',
+      '綠_↖': '綠左上.JPG', '綠_↗': '綠右上.JPG', '綠_↘': '綠右下.JPG', '綠_↙': '綠左下.JPG', '綠_中': '綠中.JPG',
+      '紅_↖': '紅左上.JPG', '紅_↗': '紅右上.JPG', '紅_↘': '紅右下.JPG', '紅_↙': '紅左下.JPG', '紅_中': '紅九.JPG',
+      '藍_↑': '藍上.jpg', '藍_↓': '藍下.jpg', '藍_←': '藍左.jpg', '藍_→': '藍右.jpg',
+      '綠_↑': '綠上.jpg', '綠_↓': '綠下.jpg', '綠_←': '綠左.jpg', '綠_→': '綠右.jpg',
+      '紅_↑': '紅上.jpg', '紅_↓': '紅下.jpg', '紅_←': '紅左.jpg', '紅_→': '紅右.jpg'
+    };
 
-        function startGame() {
-            cancelAnimationFrame(progressBar);
-            clearTimeout(timer);
-            timeLimit = parseInt(document.getElementById('speed').value);
-            generateSequence();
-            displaySequence();
-            currentIndex = 0;
-            document.getElementById('result').textContent = '';
+    let sequence = [], expectedKeys = [], currentIndex = 0;
+    let timeLimit = 1000, timer = null, progressBar = null;
+    let inputEnabled = true, currentData = [], isDBMode = false;
+
+    const submodeOptions = {
+      'floor': ['4K地板', '8K地板', '9K地板'],
+      '4K': ['10鍵', '11鍵'],
+      '8K': ['10鍵', '11鍵'],
+      '9K': ['10鍵', '11鍵']
+    };
+
+    document.getElementById('mode').addEventListener('change', updateSubmode);
+    function updateSubmode() {
+      const mode = document.getElementById('mode').value;
+      const sub = document.getElementById('submode');
+      sub.innerHTML = '';
+      submodeOptions[mode].forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt;
+        o.text = opt;
+        sub.appendChild(o);
+      });
+    }
+    updateSubmode();
+
+    async function startGame() {
+      cancelAnimationFrame(progressBar);
+      clearTimeout(timer);
+      document.getElementById("game").innerHTML = '';
+      document.getElementById("result").textContent = '';
+      inputEnabled = true;
+      timeLimit = parseInt(document.getElementById('speed').value);
+
+      const mode = document.getElementById('mode').value;
+      const submode = document.getElementById('submode').value;
+
+      // 判斷是否使用資料庫題庫（8K/9K 且為11鍵）
+      if ((mode === "8K" || mode === "9K") && submode === "11鍵") {
+        isDBMode = true;
+        const url = mode === "8K" ? "8k_11題庫.json" : "9k_11題庫.json";
+        const res = await fetch(url);
+        currentData = await res.json();
+        currentIndex = 0;
+        generateFromDB();
+        return;
+      }
+
+      // 非資料庫模式照舊處理
+      isDBMode = false;
+      sequence = [];
+      expectedKeys = [];
+      const directions = ['↑','↓','←','→','↙','↘','↖','↗','中'];
+      let count = (submode === '10鍵') ? 10 : 11;
+      for (let i = 0; i < count; i++) {
+        let d = directions[Math.floor(Math.random()*directions.length)];
+        sequence.push(d);
+        expectedKeys.push(d);
+      }
+      renderSequence();
+      startProgress();
+    }
+
+    function generateFromDB() {
+      const item = currentData[Math.floor(Math.random() * currentData.length)];
+      sequence = [...item];
+      expectedKeys = [...item];
+      currentIndex = 0;
+      renderSequence();
+      startProgress();
+    }
+
+    function renderSequence() {
+      const div = document.getElementById("game");
+      div.innerHTML = '';
+      sequence.forEach((dir, i) => {
+        const box = document.createElement("div");
+        box.className = "arrow";
+        box.id = "arrow-" + i;
+        const img = document.createElement("img");
+        img.dataset.original = dir;
+        img.src = imgMap["藍_" + dir] || "";
+        box.appendChild(img);
+        div.appendChild(box);
+      });
+      timer = setTimeout(() => {
+        if (currentIndex < expectedKeys.length) {
+          document.getElementById("game").innerHTML = '';
+          inputEnabled = false;
+          setTimeout(() => {
             inputEnabled = true;
-            startProgressBar(timeLimit);
-            timer = setTimeout(() => {
-                if (currentIndex < expectedKeys.length) {
-                    document.getElementById("game").innerHTML = '';
-                    inputEnabled = false;
-                    setTimeout(() => { inputEnabled = true; startGame(); }, 2000);
-                }
-            }, timeLimit + 50);
+            isDBMode ? generateFromDB() : startGame();
+          }, 2000);
         }
+      }, timeLimit + 50);
+    }
 
-        document.addEventListener('keydown', function(event) {
-            if (!inputEnabled) return;
-            const input = keyMap[event.key];
-            if (!input || currentIndex >= expectedKeys.length) return;
-            const expected = expectedKeys[currentIndex];
-            const arrowDiv = document.getElementById('arrow-' + currentIndex);
-            const img = arrowDiv.querySelector('img');
-            const dir = img.dataset.original;
+    document.addEventListener('keydown', e => {
+      if (!inputEnabled) return;
+      const input = keyMap[e.key];
+      if (!input || currentIndex >= expectedKeys.length) return;
+      const expected = expectedKeys[currentIndex];
+      const img = document.querySelector(`#arrow-${currentIndex} img`);
+      if (input === expected) {
+        img.src = imgMap["綠_" + img.dataset.original] || img.src;
+        currentIndex++;
+        if (currentIndex >= expectedKeys.length) {
+          clearTimeout(timer);
+          document.getElementById("game").innerHTML = '';
+          inputEnabled = false;
+          setTimeout(() => {
+            inputEnabled = true;
+            isDBMode ? generateFromDB() : startGame();
+          }, 2000);
+        }
+      } else {
+        // 按錯直接重出同一組
+        inputEnabled = false;
+        document.getElementById("game").innerHTML = '';
+        clearTimeout(timer);
+        setTimeout(() => {
+          inputEnabled = true;
+          isDBMode ? renderSequence() : startGame();
+        }, 500);
+      }
+    });
 
-            if (input === expected) {
-                img.src = imagePaths["綠_" + dir];
-                currentIndex++;
-                if (currentIndex >= expectedKeys.length) {
-                    clearTimeout(timer);
-                    document.getElementById("game").innerHTML = '';
-                    inputEnabled = false;
-                    setTimeout(() => { inputEnabled = true; startGame(); }, 2000);
-                }
-            } else {
-                inputEnabled = false;
-                document.getElementById("game").innerHTML = '';
-                clearTimeout(timer);
-                setTimeout(() => { inputEnabled = true; startGame(); }, 2000);
-            }
-        });
-    </script>
+    function startProgress() {
+      let bar = document.getElementById("bar-progress");
+      bar.style.width = '0%';
+      let start = performance.now();
+      function animate(time) {
+        let progress = Math.min((time - start) / timeLimit, 1);
+        bar.style.width = (progress * 100) + '%';
+        if (progress < 1) requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+    }
+  </script>
 </body>
 </html>

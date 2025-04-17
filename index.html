@@ -1,1 +1,180 @@
-修正後的 HTML 檔案將在此生成
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>節奏練習遊戲（整合完整版）</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
+    select, button { font-size: 16px; margin: 8px; }
+    .arrow { display: inline-block; width: 50px; height: 50px; background-size: cover; }
+    #bar-container { width: 60%; height: 10px; background: #ccc; margin: 20px auto; position: relative; }
+    #bar-progress { height: 100%; background: green; width: 0%; position: absolute; top: 0; left: 0; }
+    #game { margin-top: 20px; min-height: 60px; }
+    #result { margin-top: 20px; font-size: 18px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>整合版節奏練習遊戲</h2>
+
+  <div>
+    <label>鍵種：
+      <select id="main-mode">
+        <option value="4K">4K</option>
+        <option value="8K">8K</option>
+        <option value="9K">9K</option>
+      </select>
+    </label>
+
+    <label>子模式：
+      <select id="sub-mode">
+        <option value="floor">地板</option>
+        <option value="11">11鍵（資料庫）</option>
+      </select>
+    </label>
+
+    <label>限時：
+      <select id="speed">
+        <option value="300">0.3秒</option>
+        <option value="500">0.5秒</option>
+        <option value="700">0.7秒</option>
+        <option value="1000" selected>1秒</option>
+        <option value="1500">1.5秒</option>
+        <option value="1750">1.75秒</option>
+        <option value="2000">2秒</option>
+      </select>
+    </label>
+
+    <button onclick="startGame()">開始</button>
+  </div>
+
+  <div id="bar-container"><div id="bar-progress"></div></div>
+  <div id="game"></div>
+  <div id="result"></div>
+
+  <script>
+    const keyMap = { '1':'左下', '2':'下', '3':'右下', '4':'左', '5':'中', '6':'右', '7':'左上', '8':'上', '9':'右上' };
+    const reverseMap = { '1':'9', '2':'8', '3':'7', '4':'6', '5':'5', '6':'4', '7':'3', '8':'2', '9':'1' };
+    const poolMap = {
+      "4K": ['2','4','6','8'],
+      "8K": ['1','2','3','4','6','7','8','9'],
+      "9K": ['1','2','3','4','6','7','8','9']
+    };
+
+    let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = false;
+    const gameEl = document.getElementById("game");
+    const bar = document.getElementById("bar-progress");
+    const result = document.getElementById("result");
+
+    function renderArrows(seq, highlights = []) {
+      gameEl.innerHTML = "";
+      seq.forEach((k, i) => {
+        const dir = keyMap[k];
+        const color = highlights.includes(i) ? "綠" : (i === 7 ? "紅" : "藍");
+        const img = document.createElement("div");
+        img.className = "arrow";
+        img.style.backgroundImage = `url('${color + dir}.jpg')`;
+        gameEl.appendChild(img);
+      });
+    }
+
+    function generateFloorSet(mode) {
+      let pool = [...poolMap[mode]];
+      let seq = [];
+      for (let i = 0; i < 11; i++) {
+        seq.push(pool[Math.floor(Math.random() * pool.length)]);
+      }
+      if (mode === "9K") {
+        let insert = Math.floor(Math.random() * 11);
+        seq[insert] = '5';
+      }
+      return seq;
+    }
+
+    async function loadDataSet(mode) {
+      const res = await fetch("8K-11.json");
+      const data = await res.json();
+      let seq = data[Math.floor(Math.random() * data.length)];
+      if (mode === "9K") {
+        const i = Math.floor(Math.random() * 11);
+        seq[i] = '5';
+      }
+      return seq;
+    }
+
+    function runBar(callback) {
+      bar.style.width = "0%";
+      const start = Date.now();
+      function update() {
+        const pct = ((Date.now() - start) / timeLimit) * 100;
+        bar.style.width = Math.min(pct, 100) + "%";
+        if (pct < 100) requestAnimationFrame(update);
+        else callback();
+      }
+      update();
+    }
+
+    async function startGame() {
+      locked = false;
+      result.textContent = "";
+      mode = document.getElementById("main-mode").value;
+      sub = document.getElementById("sub-mode").value;
+      timeLimit = parseInt(document.getElementById("speed").value);
+      if (sub === "floor") {
+        sequence = generateFloorSet(mode);
+      } else if (sub === "11") {
+        sequence = await loadDataSet(mode);
+      }
+      current = 0;
+      renderArrows(sequence);
+      runBar(() => handleFail());
+    }
+
+    function handleFail() {
+      if (sub === "floor") {
+        result.textContent = "MISS！下一組";
+        locked = true;
+        setTimeout(startGame, 2000);
+      } else {
+        result.textContent = "MISS！再試一次";
+        locked = true;
+        gameEl.innerHTML = "";
+        setTimeout(() => {
+          renderArrows(sequence);
+          runBar(() => handleFail());
+          locked = false;
+          result.textContent = "";
+        }, 2000);
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (locked) return;
+      let key = e.key;
+      const useArrow = mode === "4K";
+      if (useArrow) {
+        const arrowMap = { 'ArrowLeft':'4', 'ArrowDown':'2', 'ArrowRight':'6', 'ArrowUp':'8' };
+        if (!(key in arrowMap)) return;
+        key = arrowMap[key];
+      } else {
+        if (!"123456789".includes(key)) return;
+      }
+
+      const expected = sequence[current];
+      const shouldPress = (sub === "floor" && current === 7) ? reverseMap[expected] : expected;
+
+      if (key === shouldPress) {
+        current++;
+        renderArrows(sequence, Array.from({length: current}, (_, i) => i));
+        if (current === sequence.length) {
+          result.textContent = "成功！";
+          locked = true;
+          setTimeout(startGame, 1500);
+        }
+      } else {
+        handleFail();
+      }
+    });
+  </script>
+</body>
+</html>

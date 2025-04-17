@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>節奏練習遊戲</title>
+  <title>節奏練習遊戲（最終穩定修正版）</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏練習遊戲（跳針&按鍵修正OK）</h2>
+  <h2>節奏練習遊戲（最終穩定修正版）</h2>
 
   <div>
     <label>鍵種：
@@ -59,7 +59,7 @@
       "9K": ['1','2','3','4','6','7','8','9']
     };
 
-    let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = false, currentTimeout;
+    let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
 
     const gameEl = document.getElementById("game");
     const bar = document.getElementById("bar-progress");
@@ -100,8 +100,32 @@
       return seq;
     }
 
+    async function startGame() {
+      locked = true;
+      mode = document.getElementById("main-mode").value;
+      sub = document.getElementById("sub-mode").value;
+      timeLimit = parseInt(document.getElementById("speed").value);
+
+      if (sub === "floor") {
+        sequence = generateFloorSet(mode);
+      } else {
+        sequence = await loadDataSet(mode);
+      }
+      current = 0;
+      renderArrows(sequence, [], sub !== "floor");
+
+      setTimeout(() => {
+        locked = false;
+      }, 100); // 保險一點再解鎖
+
+      runBar(() => {
+        locked = true;
+        gameEl.innerHTML = "";
+        setTimeout(startGame, 2000);
+      });
+    }
+
     function runBar(onEnd) {
-      clearTimeout(currentTimeout);
       bar.style.width = "0%";
       const start = Date.now();
       function update() {
@@ -113,27 +137,9 @@
       update();
     }
 
-    async function startGame() {
-      locked = false;
-      mode = document.getElementById("main-mode").value;
-      sub = document.getElementById("sub-mode").value;
-      timeLimit = parseInt(document.getElementById("speed").value);
-      if (sub === "floor") {
-        sequence = generateFloorSet(mode);
-      } else {
-        sequence = await loadDataSet(mode);
-      }
-      current = 0;
-      renderArrows(sequence, [], sub !== "floor");
-      runBar(() => {
-        locked = true;
-        gameEl.innerHTML = "";
-        setTimeout(startGame, 2000);
-      });
-    }
-
     document.addEventListener("keydown", (e) => {
       if (locked) return;
+
       let key = e.key;
       const useArrow = mode === "4K";
       if (useArrow) {
@@ -155,14 +161,12 @@
           setTimeout(startGame, 1500);
         }
       } else {
-        // 按錯處理
         locked = true;
         gameEl.innerHTML = "";
         if (sub === "floor") {
           setTimeout(startGame, 2000);
         } else {
-          // 資料庫模式：同組重來
-          setTimeout(async () => {
+          setTimeout(() => {
             current = 0;
             renderArrows(sequence, [], true);
             runBar(() => {

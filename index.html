@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏練習遊戲</h2>
+  <h2>節奏練習遊戲（跳針&按鍵修正OK）</h2>
 
   <div>
     <label>鍵種：
@@ -100,7 +100,7 @@
       return seq;
     }
 
-    function runBar(callback) {
+    function runBar(onEnd) {
       clearTimeout(currentTimeout);
       bar.style.width = "0%";
       const start = Date.now();
@@ -108,7 +108,7 @@
         const pct = ((Date.now() - start) / timeLimit) * 100;
         bar.style.width = Math.min(pct, 100) + "%";
         if (pct < 100) requestAnimationFrame(update);
-        else callback();
+        else onEnd();
       }
       update();
     }
@@ -126,19 +126,9 @@
       current = 0;
       renderArrows(sequence, [], sub !== "floor");
       runBar(() => {
-        if (sub === "floor") {
-          locked = true;
-          gameEl.innerHTML = "";
-          setTimeout(startGame, 2000);
-        } else {
-          locked = false;
-          current = 0;
-          gameEl.innerHTML = "";
-          setTimeout(() => {
-            renderArrows(sequence, [], true);
-            runBar(arguments.callee);
-          }, 2000);
-        }
+        locked = true;
+        gameEl.innerHTML = "";
+        setTimeout(startGame, 2000);
       });
     }
 
@@ -165,24 +155,19 @@
           setTimeout(startGame, 1500);
         }
       } else {
+        // 按錯處理
         locked = true;
         gameEl.innerHTML = "";
         if (sub === "floor") {
           setTimeout(startGame, 2000);
         } else {
-          current = 0;
-          setTimeout(() => {
+          // 資料庫模式：同組重來
+          setTimeout(async () => {
+            current = 0;
             renderArrows(sequence, [], true);
             runBar(() => {
-              current = 0;
               locked = false;
-              gameEl.innerHTML = "";
-              setTimeout(() => {
-                renderArrows(sequence, [], true);
-                runBar(arguments.callee);
-              }, 2000);
             });
-            locked = false;
           }, 2000);
         }
       }

@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>節奏練習遊戲（最終穩定修正版）</title>
+  <title>節奏練習遊戲（節奏邏輯版）</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏練習遊戲（最終穩定修正版）</h2>
+  <h2>節奏練習遊戲（節奏邏輯版）</h2>
 
   <div>
     <label>鍵種：
@@ -32,7 +32,7 @@
       </select>
     </label>
 
-    <label>限時：
+    <label>限時（整組）：
       <select id="speed">
         <option value="300">0.3秒</option>
         <option value="500">0.5秒</option>
@@ -60,6 +60,7 @@
     };
 
     let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
+    let timerId = null;
 
     const gameEl = document.getElementById("game");
     const bar = document.getElementById("bar-progress");
@@ -102,6 +103,7 @@
 
     async function startGame() {
       locked = true;
+      clearTimeout(timerId);
       mode = document.getElementById("main-mode").value;
       sub = document.getElementById("sub-mode").value;
       timeLimit = parseInt(document.getElementById("speed").value);
@@ -111,28 +113,30 @@
       } else {
         sequence = await loadDataSet(mode);
       }
+
       current = 0;
       renderArrows(sequence, [], sub !== "floor");
+      runBar(timeLimit);
 
-      setTimeout(() => {
-        locked = false;
-      }, 100); // 保險一點再解鎖
+      // 限時內要按完所有鍵，否則清空畫面，2秒後再出題
+      timerId = setTimeout(() => {
+        if (current < sequence.length) {
+          locked = true;
+          gameEl.innerHTML = "";
+          timerId = setTimeout(startGame, 2000);
+        }
+      }, timeLimit);
 
-      runBar(() => {
-        locked = true;
-        gameEl.innerHTML = "";
-        setTimeout(startGame, 2000);
-      });
+      locked = false;
     }
 
-    function runBar(onEnd) {
+    function runBar(duration) {
       bar.style.width = "0%";
       const start = Date.now();
       function update() {
-        const pct = ((Date.now() - start) / timeLimit) * 100;
+        const pct = ((Date.now() - start) / duration) * 100;
         bar.style.width = Math.min(pct, 100) + "%";
         if (pct < 100) requestAnimationFrame(update);
-        else onEnd();
       }
       update();
     }
@@ -158,20 +162,21 @@
         renderArrows(sequence, Array.from({length: current}, (_, i) => i), sub !== "floor");
         if (current === sequence.length) {
           locked = true;
-          setTimeout(startGame, 1500);
+          clearTimeout(timerId);
+          timerId = setTimeout(startGame, 2000);
         }
       } else {
         locked = true;
         gameEl.innerHTML = "";
+        clearTimeout(timerId);
         if (sub === "floor") {
-          setTimeout(startGame, 2000);
+          timerId = setTimeout(startGame, 2000);
         } else {
-          setTimeout(() => {
+          timerId = setTimeout(() => {
             current = 0;
             renderArrows(sequence, [], true);
-            runBar(() => {
-              locked = false;
-            });
+            runBar(timeLimit);
+            locked = false;
           }, 2000);
         }
       }

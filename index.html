@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>節奏練習遊戲 - 資料庫綠鍵修正完成</title>
+  <title>節奏練習遊戲 - 資料庫最終修正版</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏練習遊戲（資料庫綠鍵修正完成）</h2>
+  <h2>節奏練習遊戲（最終修正版本：資料庫變綠＋時間結束清除）</h2>
   <div>
     <label>鍵種：
       <select id="main-mode">
@@ -58,7 +58,6 @@
 
     let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
     let timerId = null;
-
     const gameEl = document.getElementById("game");
     const bar = document.getElementById("bar-progress");
 

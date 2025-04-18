@@ -2,19 +2,166 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <title>節奏遊戲（修正版）</title>
-    <style>
-        body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
-        .warning { margin-top: 30px; color: #888; font-size: 14px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>節奏練習遊戲 - 資料庫最終修正版</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
+    select, button { font-size: 16px; margin: 8px; }
+    .arrow { display: inline-block; width: 50px; height: 50px; background-size: cover; }
+    #bar-container { width: 60%; height: 10px; background: #ccc; margin: 20px auto; position: relative; }
+    #bar-progress { height: 100%; background: green; width: 0%; position: absolute; top: 0; left: 0; }
+    #game { margin-top: 20px; min-height: 60px; }
+  </style>
 </head>
 <body>
-    <h1>節奏遊戲（修正版）</h1>
-    <div id="game"></div>
-    <p class="warning">
-        ⚠️ 本遊戲僅供個人練習使用，非商業用途。禁止分享。<br>
-        ⚠️ This game is for personal practice only. Not for commercial use. Sharing is prohibited.
-    </p>
+  <h2>節奏練習遊戲（最終修正版本：資料庫變綠＋時間結束清除）</h2>
+  <div>
+    <label>鍵種：
+      <select id="main-mode">
+        <option value="4K">4K</option>
+        <option value="8K">8K</option>
+        <option value="9K">9K</option>
+      </select>
+    </label>
+    <label>子模式：
+      <select id="sub-mode">
+        <option value="floor">地板</option>
+        <option value="10">10鍵（資料庫）</option>
+        <option value="11">11鍵（資料庫）</option>
+      </select>
+    </label>
+    <label>限時（整組）：
+      <select id="speed">
+        <option value="300">0.3秒</option>
+        <option value="500">0.5秒</option>
+        <option value="700">0.7秒</option>
+        <option value="1000">1秒</option>
+        <option value="1250">1.25秒</option>
+        <option value="1500">1.5秒</option>
+        <option value="1750">1.75秒</option>
+        <option value="2000">2秒</option>
+      </select>
+    </label>
+    <button onclick="startGame()">開始</button>
+  </div>
+  <div id="bar-container"><div id="bar-progress"></div></div>
+  <div id="game"></div>
+
+  <script>
+    const keyMap = { '1':'左下', '2':'下', '3':'右下', '4':'左', '5':'中', '6':'右', '7':'左上', '8':'上', '9':'右上' };
+    const reverseMap = { '1':'9', '2':'8', '3':'7', '4':'6', '5':'5', '6':'4', '7':'3', '8':'2', '9':'1' };
+    const poolMap = {
+      "4K": ['2','4','6','8'],
+      "8K": ['1','2','3','4','6','7','8','9'],
+      "9K": ['1','2','3','4','6','7','8','9']
+    };
+
+    let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
+    let timerId = null;
+    const gameEl = document.getElementById("game");
+    const bar = document.getElementById("bar-progress");
+
+    function renderArrows(seq, highlights = [], allBlue = false) {
+      gameEl.innerHTML = "";
+      seq.forEach((k, i) => {
+        let dir = keyMap[k];
+        let color = allBlue ? "藍" : (highlights.includes(i) ? "綠" : (i === 7 && sub === "floor" ? "紅" : "藍"));
+        const div = document.createElement("div");
+        div.className = "arrow";
+        div.style.backgroundImage = `url('${color + dir}.JPG')`;
+        gameEl.appendChild(div);
+      });
+    }
+
+    function generateFloorSet(mode) {
+      let pool = [...poolMap[mode]];
+      let seq = [];
+      for (let i = 0; i < 11; i++) seq.push(pool[Math.floor(Math.random() * pool.length)]);
+      if (mode === "9K") seq[Math.floor(Math.random() * 11)] = '5';
+      return seq;
+    }
+
+    async function loadDataSet(mode, sub) {
+      const filename = mode === "9K"
+        ? (sub === "10" ? "8K-10.json" : "8K-11.json")
+        : `${mode}-${sub}.json`;
+      const res = await fetch(filename);
+      const data = await res.json();
+      let seq = [...data[Math.floor(Math.random() * data.length)]];
+      if (mode === "9K") seq[Math.floor(Math.random() * seq.length)] = '5';
+      return seq;
+    }
+
+    async function startGame() {
+      locked = true;
+      clearTimeout(timerId);
+      mode = document.getElementById("main-mode").value;
+      sub = document.getElementById("sub-mode").value;
+      timeLimit = parseInt(document.getElementById("speed").value);
+      sequence = sub === "floor" ? generateFloorSet(mode) : await loadDataSet(mode, sub);
+      current = 0;
+      renderArrows(sequence, [], sub !== "floor");
+      runBar(timeLimit);
+      locked = false;
+
+      timerId = setTimeout(() => {
+        if (current < sequence.length) {
+          locked = true;
+          gameEl.innerHTML = "";
+          timerId = setTimeout(startGame, 2000);
+        }
+      }, timeLimit);
+    }
+
+    function runBar(duration) {
+      bar.style.width = "0%";
+      const start = Date.now();
+      function update() {
+        const pct = ((Date.now() - start) / duration) * 100;
+        bar.style.width = Math.min(pct, 100) + "%";
+        if (pct < 100) requestAnimationFrame(update);
+      }
+      update();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (locked) return;
+
+      let key = e.key;
+      const useArrow = mode === "4K";
+      if (useArrow) {
+        const arrowMap = { 'ArrowLeft':'4', 'ArrowDown':'2', 'ArrowRight':'6', 'ArrowUp':'8' };
+        if (!(key in arrowMap)) return;
+        key = arrowMap[key];
+      } else if (!"123456789".includes(key)) return;
+
+      const expected = sequence[current];
+      const correctKey = (sub === "floor" && current === 7) ? reverseMap[expected] : expected;
+
+      if (key === correctKey) {
+        current++;
+        renderArrows(sequence, Array.from({length: current}, (_, i) => i), sub !== "floor");
+        if (current === sequence.length) {
+          locked = true;
+          clearTimeout(timerId);
+          timerId = setTimeout(startGame, 2000);
+        }
+      } else {
+        locked = true;
+        gameEl.innerHTML = "";
+        clearTimeout(timerId);
+        if (sub === "floor") {
+          timerId = setTimeout(startGame, 2000);
+        } else {
+          timerId = setTimeout(() => {
+            current = 0;
+            renderArrows(sequence, [], true);
+            runBar(timeLimit);
+            locked = false;
+          }, 2000);
+        }
+      }
+    });
+  </script>
 </body>
 </html>

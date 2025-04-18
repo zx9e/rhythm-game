@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>節奏練習遊戲（節奏邏輯版）</title>
+  <title>節奏練習遊戲（最終整合修正版）</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏練習遊戲（節奏邏輯版）</h2>
+  <h2>節奏練習遊戲（最終整合修正版）</h2>
 
   <div>
     <label>鍵種：
@@ -28,6 +28,7 @@
     <label>子模式：
       <select id="sub-mode">
         <option value="floor">地板</option>
+        <option value="10">10鍵（資料庫）</option>
         <option value="11">11鍵（資料庫）</option>
       </select>
     </label>
@@ -38,6 +39,7 @@
         <option value="500">0.5秒</option>
         <option value="700">0.7秒</option>
         <option value="1000" selected>1秒</option>
+        <option value="1250">1.25秒</option>
         <option value="1500">1.5秒</option>
         <option value="1750">1.75秒</option>
         <option value="2000">2秒</option>
@@ -90,14 +92,20 @@
       return seq;
     }
 
-    async function loadDataSet(mode) {
-      const res = await fetch(mode + "-11.json");
+    async function loadDataSet(mode, sub) {
+      const filename = mode === "9K"
+        ? (sub === "10" ? "8K-10.json" : "8K-11.json")
+        : `${mode}-${sub}.json`;
+
+      const res = await fetch(filename);
       const data = await res.json();
-      let seq = data[Math.floor(Math.random() * data.length)];
+      let seq = [...data[Math.floor(Math.random() * data.length)]];
+
       if (mode === "9K") {
-        const i = Math.floor(Math.random() * 11);
-        seq[i] = '5';
+        let insert = Math.floor(Math.random() * seq.length);
+        seq[insert] = '5'; // 替換成中鍵
       }
+
       return seq;
     }
 
@@ -111,14 +119,13 @@
       if (sub === "floor") {
         sequence = generateFloorSet(mode);
       } else {
-        sequence = await loadDataSet(mode);
+        sequence = await loadDataSet(mode, sub);
       }
 
       current = 0;
       renderArrows(sequence, [], sub !== "floor");
       runBar(timeLimit);
 
-      // 限時內要按完所有鍵，否則清空畫面，2秒後再出題
       timerId = setTimeout(() => {
         if (current < sequence.length) {
           locked = true;

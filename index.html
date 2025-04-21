@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>節奏遊戲（互動完整版）</title>
+  <title>節奏遊戲（整合互動＋紅鍵反向版）</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -15,7 +15,8 @@
   </style>
 </head>
 <body>
-  <h2>節奏遊戲（互動完整版）</h2>
+  <h2>節奏遊戲（整合互動＋紅鍵反向修正版）</h2>
+
   <div>
     <label>鍵種：
       <select id="main-mode">
@@ -24,6 +25,7 @@
         <option value="9K">9K</option>
       </select>
     </label>
+
     <label>子模式：
       <select id="sub-mode">
         <option value="floor">地板</option>
@@ -31,6 +33,7 @@
         <option value="11">11鍵（資料庫）</option>
       </select>
     </label>
+
     <label>反鍵：
       <select id="reverse-setting">
         <option value="0">無</option>
@@ -38,6 +41,7 @@
         <option value="6">6鍵</option>
       </select>
     </label>
+
     <label>限時（整組）：
       <select id="speed">
         <option value="300">0.3秒</option>
@@ -50,14 +54,18 @@
         <option value="2000">2秒</option>
       </select>
     </label>
+
     <button onclick="startGame()">開始</button>
   </div>
+
   <div id="bar-container"><div id="bar-progress"></div></div>
   <div id="game"></div>
+
   <footer>
     ⚠️ 本遊戲僅供個人練習使用，非商業用途。禁止分享。<br>
     ⚠️ This game is for personal practice only. Not for commercial use. Sharing is prohibited.
   </footer>
+
   <script>
     const keyMap = { '1':'左下', '2':'下', '3':'右下', '4':'左', '5':'中', '6':'右', '7':'左上', '8':'上', '9':'右上' };
     const reverseMap = { '1':'9', '2':'8', '3':'7', '4':'6', '5':'5', '6':'4', '7':'3', '8':'2', '9':'1' };
@@ -68,14 +76,15 @@
     };
 
     let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
-    let highlights = [], reversedIndex = [], originalKeys = [], timerId = null;
+    let highlights = [], reversedIndex = [], timerId = null;
+
     const gameEl = document.getElementById("game");
     const bar = document.getElementById("bar-progress");
 
     function renderArrows(seq, highlights = [], allBlue = false) {
       gameEl.innerHTML = "";
       seq.forEach((k, i) => {
-        let dir = keyMap[originalKeys[i] || k];
+        let dir = keyMap[k];
         let color;
         if (allBlue) {
           color = "藍";
@@ -95,23 +104,16 @@
       });
     }
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-
     function applyReverse(seq, count) {
-      reversedIndex = [];
-      originalKeys = [...seq];
-      const indices = shuffle([...Array(seq.length).keys()]);
-      for (let i = 0; i < count && i < indices.length; i++) {
-        const idx = indices[i];
+      const indices = [...Array(seq.length).keys()];
+      let selected = [];
+      for (let i = 0; i < count && indices.length > 0; i++) {
+        const randIndex = Math.floor(Math.random() * indices.length);
+        const idx = indices.splice(randIndex, 1)[0];
         seq[idx] = reverseMap[seq[idx]];
-        reversedIndex.push(idx);
+        selected.push(idx);
       }
+      reversedIndex = selected;
       return seq;
     }
 
@@ -120,8 +122,7 @@
       let seq = [];
       for (let i = 0; i < 11; i++) seq.push(pool[Math.floor(Math.random() * pool.length)]);
       if (mode === "9K") seq[Math.floor(Math.random() * 11)] = '5';
-      reversedIndex = [];
-      originalKeys = [];
+      reversedIndex = []; // 地板模式不處理紅鍵
       return seq;
     }
 
@@ -133,11 +134,8 @@
       const data = await res.json();
       let seq = [...data[Math.floor(Math.random() * data.length)]];
       if (mode === "9K") seq[Math.floor(Math.random() * seq.length)] = '5';
+      reversedIndex = [];
       if (reverseCount > 0) seq = applyReverse(seq, reverseCount);
-      else {
-        reversedIndex = [];
-        originalKeys = [...seq];
-      }
       return seq;
     }
 
@@ -148,11 +146,13 @@
       sub = document.getElementById("sub-mode").value;
       timeLimit = parseInt(document.getElementById("speed").value);
       const reverseCount = parseInt(document.getElementById("reverse-setting").value);
+
       sequence = sub === "floor" ? generateFloorSet(mode) : await loadDataSet(mode, sub, reverseCount);
       current = 0;
       highlights = [];
       renderArrows(sequence, highlights, sub !== "floor");
       runBar(timeLimit);
+
       timerId = setTimeout(() => {
         if (current < sequence.length) {
           locked = true;
@@ -160,6 +160,7 @@
           timerId = setTimeout(startGame, 2000);
         }
       }, timeLimit);
+
       locked = false;
     }
 
@@ -176,6 +177,7 @@
 
     document.addEventListener("keydown", (e) => {
       if (locked) return;
+
       let key = e.key;
       const useArrow = mode === "4K";
       if (useArrow) {
@@ -183,10 +185,11 @@
         if (!(key in arrowMap)) return;
         key = arrowMap[key];
       } else if (!"123456789".includes(key)) return;
+
       const expected = sequence[current];
-      const isReverseKey = sub !== "floor" && reversedIndex.includes(current);
-      const compareKey = isReverseKey ? reverseMap[originalKeys[current]] : expected;
-      if (key === compareKey) {
+      const correctKey = (sub === "floor" && current === 7) ? reverseMap[expected] : expected;
+
+      if (key === correctKey) {
         highlights.push(current);
         current++;
         renderArrows(sequence, highlights, false);

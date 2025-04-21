@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>節奏練習遊戲（整合互動版）</title>
+  <title>節奏遊戲（整合互動＋紅鍵反向版）</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -15,7 +15,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏練習遊戲（整合互動版）</h2>
+  <h2>節奏遊戲（整合互動＋紅鍵反向修正版）</h2>
 
   <div>
     <label>鍵種：
@@ -75,7 +75,9 @@
       "9K": ['1','2','3','4','6','7','8','9']
     };
 
-    let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true, highlights = [], timerId = null;
+    let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
+    let highlights = [], reversedIndex = [], timerId = null;
+
     const gameEl = document.getElementById("game");
     const bar = document.getElementById("bar-progress");
 
@@ -86,9 +88,10 @@
         let color;
         if (allBlue) {
           color = "藍";
+        } else if (reversedIndex.includes(i) && sub !== "floor") {
+          color = "紅";
         } else if (highlights.includes(i)) {
-          if (mode === "4K") color = "綠";
-          else color = "橘";
+          color = (mode === "4K") ? "綠" : "橘";
         } else if (sub === "floor" && i === 7) {
           color = "紅";
         } else {
@@ -103,12 +106,14 @@
 
     function applyReverse(seq, count) {
       const indices = [...Array(seq.length).keys()];
-      for (let i = 0; i < count; i++) {
-        if (indices.length === 0) break;
+      let selected = [];
+      for (let i = 0; i < count && indices.length > 0; i++) {
         const randIndex = Math.floor(Math.random() * indices.length);
         const idx = indices.splice(randIndex, 1)[0];
         seq[idx] = reverseMap[seq[idx]];
+        selected.push(idx);
       }
+      reversedIndex = selected;
       return seq;
     }
 
@@ -117,6 +122,7 @@
       let seq = [];
       for (let i = 0; i < 11; i++) seq.push(pool[Math.floor(Math.random() * pool.length)]);
       if (mode === "9K") seq[Math.floor(Math.random() * 11)] = '5';
+      reversedIndex = []; // 地板模式不處理紅鍵
       return seq;
     }
 
@@ -128,6 +134,7 @@
       const data = await res.json();
       let seq = [...data[Math.floor(Math.random() * data.length)]];
       if (mode === "9K") seq[Math.floor(Math.random() * seq.length)] = '5';
+      reversedIndex = [];
       if (reverseCount > 0) seq = applyReverse(seq, reverseCount);
       return seq;
     }
@@ -183,8 +190,8 @@
       const correctKey = (sub === "floor" && current === 7) ? reverseMap[expected] : expected;
 
       if (key === correctKey) {
+        highlights.push(current);
         current++;
-        highlights.push(current - 1);
         renderArrows(sequence, highlights, false);
         if (current === sequence.length) {
           locked = true;

@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>節奏遊戲（整合互動＋紅鍵反向版）</title>
+  <title>節奏遊戲（正式修正版）</title>
   <style>
     body { font-family: sans-serif; background: #f0f0f0; text-align: center; }
     select, button { font-size: 16px; margin: 8px; }
@@ -15,8 +15,7 @@
   </style>
 </head>
 <body>
-  <h2>節奏遊戲（整合互動＋紅鍵反向修正版）</h2>
-
+  <h2>節奏遊戲（資料庫隨機不重複＋地板紅鍵保留）</h2>
   <div>
     <label>鍵種：
       <select id="main-mode">
@@ -25,7 +24,6 @@
         <option value="9K">9K</option>
       </select>
     </label>
-
     <label>子模式：
       <select id="sub-mode">
         <option value="floor">地板</option>
@@ -33,15 +31,6 @@
         <option value="11">11鍵（資料庫）</option>
       </select>
     </label>
-
-    <label>反鍵：
-      <select id="reverse-setting">
-        <option value="0">無</option>
-        <option value="3">3鍵</option>
-        <option value="6">6鍵</option>
-      </select>
-    </label>
-
     <label>限時（整組）：
       <select id="speed">
         <option value="300">0.3秒</option>
@@ -54,18 +43,14 @@
         <option value="2000">2秒</option>
       </select>
     </label>
-
     <button onclick="startGame()">開始</button>
   </div>
-
   <div id="bar-container"><div id="bar-progress"></div></div>
   <div id="game"></div>
-
   <footer>
     ⚠️ 本遊戲僅供個人練習使用，非商業用途。禁止分享。<br>
     ⚠️ This game is for personal practice only. Not for commercial use. Sharing is prohibited.
   </footer>
-
   <script>
     const keyMap = { '1':'左下', '2':'下', '3':'右下', '4':'左', '5':'中', '6':'右', '7':'左上', '8':'上', '9':'右上' };
     const reverseMap = { '1':'9', '2':'8', '3':'7', '4':'6', '5':'5', '6':'4', '7':'3', '8':'2', '9':'1' };
@@ -76,8 +61,7 @@
     };
 
     let sequence = [], current = 0, timeLimit = 1000, mode = "4K", sub = "floor", locked = true;
-    let highlights = [], reversedIndex = [], timerId = null;
-
+    let highlights = [], remaining = [], timerId = null;
     const gameEl = document.getElementById("game");
     const bar = document.getElementById("bar-progress");
 
@@ -88,8 +72,6 @@
         let color;
         if (allBlue) {
           color = "藍";
-        } else if (reversedIndex.includes(i) && sub !== "floor") {
-          color = "紅";
         } else if (highlights.includes(i)) {
           color = (mode === "4K") ? "綠" : "橘";
         } else if (sub === "floor" && i === 7) {
@@ -97,24 +79,25 @@
         } else {
           color = "藍";
         }
+
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "inline-block";
+        wrapper.style.margin = "0 4px";
+        wrapper.style.textAlign = "center";
+
+        const label = document.createElement("div");
+        label.innerText = k;
+        label.style.fontSize = "14px";
+        label.style.marginBottom = "4px";
+
         const div = document.createElement("div");
         div.className = "arrow";
         div.style.backgroundImage = `url('${color + dir}.JPG')`;
-        gameEl.appendChild(div);
-      });
-    }
 
-    function applyReverse(seq, count) {
-      const indices = [...Array(seq.length).keys()];
-      let selected = [];
-      for (let i = 0; i < count && indices.length > 0; i++) {
-        const randIndex = Math.floor(Math.random() * indices.length);
-        const idx = indices.splice(randIndex, 1)[0];
-        seq[idx] = reverseMap[seq[idx]];
-        selected.push(idx);
-      }
-      reversedIndex = selected;
-      return seq;
+        wrapper.appendChild(label);
+        wrapper.appendChild(div);
+        gameEl.appendChild(wrapper);
+      });
     }
 
     function generateFloorSet(mode) {
@@ -122,21 +105,16 @@
       let seq = [];
       for (let i = 0; i < 11; i++) seq.push(pool[Math.floor(Math.random() * pool.length)]);
       if (mode === "9K") seq[Math.floor(Math.random() * 11)] = '5';
-      reversedIndex = []; // 地板模式不處理紅鍵
       return seq;
     }
 
-    async function loadDataSet(mode, sub, reverseCount) {
+    async function loadDataSet(mode, sub) {
       const filename = mode === "9K"
         ? (sub === "10" ? "8K-10.json" : "8K-11.json")
         : `${mode}-${sub}.json`;
       const res = await fetch(filename);
       const data = await res.json();
-      let seq = [...data[Math.floor(Math.random() * data.length)]];
-      if (mode === "9K") seq[Math.floor(Math.random() * seq.length)] = '5';
-      reversedIndex = [];
-      if (reverseCount > 0) seq = applyReverse(seq, reverseCount);
-      return seq;
+      remaining = [...data];
     }
 
     async function startGame() {
@@ -145,9 +123,22 @@
       mode = document.getElementById("main-mode").value;
       sub = document.getElementById("sub-mode").value;
       timeLimit = parseInt(document.getElementById("speed").value);
-      const reverseCount = parseInt(document.getElementById("reverse-setting").value);
 
-      sequence = sub === "floor" ? generateFloorSet(mode) : await loadDataSet(mode, sub, reverseCount);
+      if (sub === "floor") {
+        sequence = generateFloorSet(mode);
+      } else {
+        if (remaining.length === 0) {
+          await loadDataSet(mode, sub);
+        }
+        if (remaining.length === 0) {
+          alert("今日全部練習完成！");
+          return;
+        }
+        const index = Math.floor(Math.random() * remaining.length);
+        sequence = [...remaining[index]];
+        remaining.splice(index, 1);
+      }
+
       current = 0;
       highlights = [];
       renderArrows(sequence, highlights, sub !== "floor");
@@ -177,7 +168,6 @@
 
     document.addEventListener("keydown", (e) => {
       if (locked) return;
-
       let key = e.key;
       const useArrow = mode === "4K";
       if (useArrow) {
@@ -205,6 +195,7 @@
         if (sub === "floor") {
           timerId = setTimeout(startGame, 2000);
         } else {
+          remaining.push([...sequence]); // 錯題重補
           timerId = setTimeout(() => {
             current = 0;
             highlights = [];
